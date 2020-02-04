@@ -1,0 +1,6 @@
+ ID	Profiling Technique	Dataset ID	No of Samples	Type of Samples	Pubmed ID
+ID1	Affymetrix Array	GSE62232	91	81 HCC and 10 non-tumor	25822088
+ID2	Affymetrix Array	GSE63067	18	Steatosis, healthy and Non-alcoholic steatohepatitis	25993042
+ID3	Affymetrix Array	GSE64041	125	60 pairs HCC and non-tumor, 5 normal	27499918
+ID4	Affymetrix Array	GSE69715	103	HCV-associated hepatocellular carcinoma (HCC) and adjacent non tumor	29538454
+ID5	Affymetrix Array	GSE72981	30	Subcutaneous and orthotopic HCC tissue	26520397
