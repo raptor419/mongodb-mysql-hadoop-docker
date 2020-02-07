@@ -17,7 +17,7 @@ RUN apt-get install -y gnupg
 # Environment Variables
 ENV DEBIAN_FRONTEND noninteractive
 ENV INITRD No
-ENV LANG "en_US.UTF-8"
+ENV LANG en_US.UTF-8
 
 # passwordless ssh
 RUN rm -f /etc/ssh/ssh_host_dsa_key /etc/ssh/ssh_host_rsa_key /root/.ssh/id_rsa
@@ -77,9 +77,11 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/jre
 ENV PATH $PATH:$JAVA_HOME/bin
 
 # Hadoop
-RUN curl -s https://www.apache.org/dyn/closer.cgi/hadoop/common/hadoop-3.1.3/hadoop-3.1.3-src.tar.gz | tar -xz -C /usr/local/
-RUN cd /usr/local 
-RUN ln -s ./hadoop-3.1.3 hadoop
+RUN curl -s http://www-eu.apache.org/dist/hadoop/common/hadoop-3.1.3/hadoop-3.1.3.tar.gz | tar -xz -C /usr/local/
+RUN cd /usr/local
+RUN cp -r /usr/local/hadoop-3.1.3/ /usr/local/hadoop
+
+RUN apt-get install -y openjdk-8-jdk 
 
 # Hadoop Envs
 
@@ -90,10 +92,31 @@ ENV HADOOP_MAPRED_HOME /usr/local/hadoop
 ENV HADOOP_YARN_HOME /usr/local/hadoop
 ENV HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop
 ENV YARN_CONF_DIR $HADOOP_PREFIX/etc/hadoop
+ENV YARN_HOME=$HADOOP_HOME
+ENV HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+ENV PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
 
-RUN sed -i '/^export JAVA_HOME/ s:.*:export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre\nexport HADOOP_PREFIX=/usr/local/hadoop\nexport HADOOP_HOME=/usr/local/hadoop\n:' $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
-RUN sed -i '/^export HADOOP_CONF_DIR/ s:.*:export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop/:' $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+# RUN sed -i '/^export JAVA_HOME/ s:.*:export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre\nexport HADOOP_PREFIX=/usr/local/hadoop\nexport HADOOP_HOME=/usr/local/hadoop\n:' $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+# RUN sed -i '/^export HADOOP_CONF_DIR/ s:.*:export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop/:' $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+# RUN . $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+
+RUN echo "export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre" >> $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+RUN echo "export HADOOP_PREFIX=/usr/local/hadoop" >> $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+RUN echo "export HADOOP_HOME=/usr/local/hadoop" >> $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+RUN echo "export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop/" >> $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 RUN . $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+
+
+ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
+RUN sed s/HOSTNAME/0.0.0.0/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+
+ADD core-site.xml $HADOOP_PREFIX/etc/hadoop/core-site.xml
+ADD hdfs-site.xml $HADOOP_PREFIX/etc/hadoop/hdfs-site.xml
+ADD mapred-site.xml $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
+ADD yarn-site.xml $HADOOP_PREFIX/etc/hadoop/yarn-site.xml
+
+# ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
+# RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
 
 RUN $HADOOP_PREFIX/bin/hdfs namenode -format
 
@@ -107,13 +130,21 @@ RUN chmod 700 /etc/bootstrap.sh
 
 ENV BOOTSTRAP /etc/bootstrap.sh
 
-# fix the 254 error code
-RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
-RUN echo "UsePAM no" >> /etc/ssh/sshd_config
-RUN echo "Port 2122" >> /etc/ssh/sshd_config
+ENV HDFS_NAMENODE_USER "root"
+ENV HDFS_DATANODE_USER "root"
+ENV HDFS_SECONDARYNAMENODE_USER "root"
+ENV YARN_RESOURCEMANAGER_USER "root"
+ENV YARN_NODEMANAGER_USER "root"
 
-RUN service ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/root
-RUN service ssh start && $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh && $HADOOP_PREFIX/sbin/start-dfs.sh && $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/etc/hadoop/ input
+RUN chown root:root $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+RUN chmod 700 $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
+
+RUN service ssh start
+RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh 
+RUN $HADOOP_PREFIX/sbin/start-dfs.sh
+RUN $HADOOP_PREFIX/sbin/start-yarn.sh
+RUN $HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/root
+RUN $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/etc/hadoop/ input
 
 CMD ["/etc/bootstrap.sh", "-bash"]
 
@@ -122,10 +153,6 @@ RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Hdfs ports
-EXPOSE 50010 50020 50070 50075 50090 8020 9000
-# Mapred ports
-EXPOSE 10020 19888
-#Yarn ports
-EXPOSE 8030 8031 8032 8033 8040 8042 8088
+EXPOSE 8088 9870 9864 19888 8042 8888 9000
 #Other ports
 EXPOSE 49707 2122 22
