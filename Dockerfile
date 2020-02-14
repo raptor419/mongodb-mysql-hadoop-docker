@@ -46,7 +46,7 @@ RUN sed -i -e "s/\(\[client\]\)/\1\ndefault-character-set = utf8/g" /etc/mysql/m
 RUN sed -i -e "s/\(\[mysql\]\)/\1\ndefault-character-set = utf8/g" /etc/mysql/my.cnf
 RUN sed -i -e "s/\(\[mysqld\]\)/\1\ninit_connect='SET NAMES utf8'\ncharacter-set-server = utf8\ncollation-server=utf8_unicode_ci\nbind-address = 0.0.0.0/g" /etc/mysql/my.cnf
 
-VOLUME /var/lib/mysql
+VOLUME ["/var/lib/mysql"]
 
 RUN mkdir -p /etc/service/mysql
 ADD run_mysql.sh /etc/service/mysql/run
@@ -56,7 +56,7 @@ RUN mkdir -p /var/lib/mysql/
 RUN chmod -R 755 /var/lib/mysql/
 
 ADD sql_startup.sh /etc/mysql/my_sql.sh
-# RUN chmod +x /etc/mysql/my_sql.sh
+
 
 EXPOSE 3306
 
@@ -175,8 +175,11 @@ RUN chown mysql:mysql /var/run/mysqld
 
 RUN chmod +x /etc/mysql/my_sql.sh
 
-# UN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
+# RUN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
 
+ADD dump.sql /var/lib/mysql/dump.sql
+
+RUN chmod +x /etc/mysql/my_sql.sh
 CMD ["/etc/mysql/my_sql.sh"]
 CMD ["/usr/bin/mysqld_safe"]
 CMD ["/etc/bootstrap.sh", "-bash"]
