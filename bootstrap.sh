@@ -25,6 +25,7 @@ $HADOOP_PREFIX/sbin/start-yarn.sh
 
 service mysql start
 mongod --fork --logpath /var/log/mongod.log
+mysql --user=root --password=root < /var/lib/mysql/dump.sql
 
 if [[ $1 == "-d" ]]; then
   while true; do sleep 1000; done
