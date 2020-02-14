@@ -72,6 +72,7 @@ RUN mkdir -p /data/db
 VOLUME ["/data/db"]
 RUN chown -R mongodb:mongodb /data
 RUN echo "bind_ip = 0.0.0.0" >> /etc/mongodb.conf
+# RUN echo "bind_ip = 0.0.0.0" >> /etc/mongod.conf
 
 EXPOSE 27017
 
@@ -139,6 +140,11 @@ RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.templat
 
 RUN $HADOOP_PREFIX/bin/hdfs namenode -format
 
+RUN apt-get install -y python3-pip
+RUN pip3 install pandas
+RUN pip3 install pymongo
+RUN pip3 install mysql-connector-python
+
 ADD ssh_config /root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 RUN chown root:root /root/.ssh/config
@@ -177,6 +183,10 @@ RUN chmod +x /etc/mysql/my_sql.sh
 
 # RUN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
 
+
+ADD code/answer1.py /code/answer1.py
+ADD code/answer2.py /code/answer2.py
+ADD code/Group45.csv /code/Group45.csv
 ADD dump.sql /var/lib/mysql/dump.sql
 
 RUN chmod +x /etc/mysql/my_sql.sh
