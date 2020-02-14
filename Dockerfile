@@ -175,7 +175,7 @@ RUN chown mysql:mysql /var/run/mysqld
 
 RUN chmod +x /etc/mysql/my_sql.sh
 
-# RUN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
+# UN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
 
 CMD ["/etc/mysql/my_sql.sh"]
 CMD ["/usr/bin/mysqld_safe"]
