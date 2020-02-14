@@ -32,17 +32,31 @@ RUN echo "mysql-server mysql-server/root_password password root" | debconf-set-s
 RUN echo "mysql-server mysql-server/root_password_again password root" | debconf-set-selections
 RUN apt-get install -y mysql-server
 
-ADD sql.cnf         /etc/mysql/my.cnf
+RUN mkdir -p /var/lib/mysql
+RUN mkdir -p /var/run/mysqld
+RUN mkdir -p /var/log/mysql
+RUN chown -R mysql:mysql /var/lib/mysql
+RUN chown -R mysql:mysql /var/run/mysqld
+RUN chown -R mysql:mysql /var/log/mysql
 
-RUN mkdir -p        /etc/service/mysql
-ADD run_mysql.sh    /etc/service/mysql/run
-RUN chmod +x        /etc/service/mysql/run
 
-RUN mkdir -p        /var/lib/mysql/
-RUN chmod -R 755    /var/lib/mysql/
+# UTF-8 and bind-address
+RUN sed -i -e "$ a [client]\n\n[mysql]\n\n[mysqld]"  /etc/mysql/my.cnf
+RUN sed -i -e "s/\(\[client\]\)/\1\ndefault-character-set = utf8/g" /etc/mysql/my.cnf
+RUN sed -i -e "s/\(\[mysql\]\)/\1\ndefault-character-set = utf8/g" /etc/mysql/my.cnf
+RUN sed -i -e "s/\(\[mysqld\]\)/\1\ninit_connect='SET NAMES utf8'\ncharacter-set-server = utf8\ncollation-server=utf8_unicode_ci\nbind-address = 0.0.0.0/g" /etc/mysql/my.cnf
 
-ADD my_sql.sh       /etc/mysql/my_sql.sh
-RUN chmod +x        /etc/mysql/my_sql.sh
+VOLUME /var/lib/mysql
+
+RUN mkdir -p /etc/service/mysql
+ADD run_mysql.sh /etc/service/mysql/run
+RUN chmod +x /etc/service/mysql/run
+
+RUN mkdir -p /var/lib/mysql/
+RUN chmod -R 755 /var/lib/mysql/
+
+ADD sql_startup.sh /etc/mysql/my_sql.sh
+# RUN chmod +x /etc/mysql/my_sql.sh
 
 EXPOSE 3306
 
@@ -77,9 +91,15 @@ ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/jre
 ENV PATH $PATH:$JAVA_HOME/bin
 
 # Hadoop
+# ADD hadoop-2.10.0.tar.gz /usr/local/hadoop-2.10.0.tar.gz
+# RUN chown root /usr/local/hadoop-2.10.0.tar.gz
+# RUN chmod 777 /usr/local/hadoop-2.10.0.tar.gz
+
 RUN curl -s http://www-eu.apache.org/dist/hadoop/common/hadoop-3.1.3/hadoop-3.1.3.tar.gz | tar -xz -C /usr/local/
+# RUN tar -xz /usr/local/hadoop-3.1.2.tar.gz
 RUN cd /usr/local
 RUN cp -r /usr/local/hadoop-3.1.3/ /usr/local/hadoop
+RUN chmod 777 /usr/local/hadoop
 
 RUN apt-get install -y openjdk-8-jdk 
 
@@ -87,13 +107,12 @@ RUN apt-get install -y openjdk-8-jdk
 
 ENV HADOOP_PREFIX /usr/local/hadoop
 ENV HADOOP_COMMON_HOME /usr/local/hadoop
+ENV HADOOP_HOME /usr/local/hadoop
 ENV HADOOP_HDFS_HOME /usr/local/hadoop
 ENV HADOOP_MAPRED_HOME /usr/local/hadoop
 ENV HADOOP_YARN_HOME /usr/local/hadoop
 ENV HADOOP_CONF_DIR /usr/local/hadoop/etc/hadoop
 ENV YARN_CONF_DIR $HADOOP_PREFIX/etc/hadoop
-ENV YARN_HOME=$HADOOP_HOME
-ENV HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
 ENV PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
 
 # RUN sed -i '/^export JAVA_HOME/ s:.*:export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64/jre\nexport HADOOP_PREFIX=/usr/local/hadoop\nexport HADOOP_HOME=/usr/local/hadoop\n:' $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
@@ -107,16 +126,16 @@ RUN echo "export HADOOP_CONF_DIR=/usr/local/hadoop/etc/hadoop/" >> $HADOOP_PREFI
 RUN . $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 
 
-ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
-RUN sed s/HOSTNAME/0.0.0.0/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+# ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
+# RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
 
 ADD core-site.xml $HADOOP_PREFIX/etc/hadoop/core-site.xml
 ADD hdfs-site.xml $HADOOP_PREFIX/etc/hadoop/hdfs-site.xml
 ADD mapred-site.xml $HADOOP_PREFIX/etc/hadoop/mapred-site.xml
 ADD yarn-site.xml $HADOOP_PREFIX/etc/hadoop/yarn-site.xml
 
-# ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
-# RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
+ADD core-site.xml.template $HADOOP_PREFIX/etc/hadoop/core-site.xml.template
+RUN sed s/HOSTNAME/localhost/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > /usr/local/hadoop/etc/hadoop/core-site.xml
 
 RUN $HADOOP_PREFIX/bin/hdfs namenode -format
 
@@ -130,6 +149,17 @@ RUN chmod 700 /etc/bootstrap.sh
 
 ENV BOOTSTRAP /etc/bootstrap.sh
 
+# workingaround docker.io build error
+RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
+RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
+
+# fix the 254 error code
+RUN sed  -i "/^[^#]*UsePAM/ s/.*/#&/"  /etc/ssh/sshd_config
+RUN echo "UsePAM no" >> /etc/ssh/sshd_config
+RUN echo "Port 2122" >> /etc/ssh/sshd_config
+
+
 ENV HDFS_NAMENODE_USER "root"
 ENV HDFS_DATANODE_USER "root"
 ENV HDFS_SECONDARYNAMENODE_USER "root"
@@ -139,13 +169,16 @@ ENV YARN_NODEMANAGER_USER "root"
 RUN chown root:root $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 RUN chmod 700 $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 
-RUN service ssh start
-RUN $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh 
-RUN $HADOOP_PREFIX/sbin/start-dfs.sh
-RUN $HADOOP_PREFIX/sbin/start-yarn.sh
-RUN $HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/root
-RUN $HADOOP_PREFIX/bin/hdfs dfs -put $HADOOP_PREFIX/etc/hadoop/ input
 
+RUN mkdir -p /var/run/mysqld
+RUN chown mysql:mysql /var/run/mysqld
+
+RUN chmod +x /etc/mysql/my_sql.sh
+
+# RUN echo "export PATH=ENV HADOOP_COMMON_HOME/bin :${PATH}" >> /root/.bashrc
+
+CMD ["/etc/mysql/my_sql.sh"]
+CMD ["/usr/bin/mysqld_safe"]
 CMD ["/etc/bootstrap.sh", "-bash"]
 
 # === Clean APT

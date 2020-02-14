@@ -14,8 +14,17 @@ sed s/HOSTNAME/$HOSTNAME/ /usr/local/hadoop/etc/hadoop/core-site.xml.template > 
 
 
 service ssh start
+
+$HADOOP_PREFIX/sbin/stop-dfs.sh
+$HADOOP_PREFIX/sbin/stop-yarn.sh
+
+$HADOOP_PREFIX/bin/hdfs namenode -format
+
 $HADOOP_PREFIX/sbin/start-dfs.sh
 $HADOOP_PREFIX/sbin/start-yarn.sh
+
+service mysql start
+mongod --fork --logpath /var/log/mongod.log
 
 if [[ $1 == "-d" ]]; then
   while true; do sleep 1000; done
