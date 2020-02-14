@@ -149,12 +149,6 @@ ADD ssh_config /root/.ssh/config
 RUN chmod 600 /root/.ssh/config
 RUN chown root:root /root/.ssh/config
 
-ADD bootstrap.sh /etc/bootstrap.sh
-RUN chown root:root /etc/bootstrap.sh
-RUN chmod 700 /etc/bootstrap.sh
-
-ENV BOOTSTRAP /etc/bootstrap.sh
-
 # workingaround docker.io build error
 RUN ls -la /usr/local/hadoop/etc/hadoop/*-env.sh
 RUN chmod +x /usr/local/hadoop/etc/hadoop/*-env.sh
@@ -175,6 +169,15 @@ ENV YARN_NODEMANAGER_USER "root"
 RUN chown root:root $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 RUN chmod 700 $HADOOP_PREFIX/etc/hadoop/hadoop-env.sh
 
+RUN curl -s https://www-eu.apache.org/dist/hive/hive-3.1.2/apache-hive-3.1.2-bin.tar.gz | tar -xz -C /usr/local/
+RUN cd /usr/local
+RUN cp -r /usr/local/apache-hive-3.1.2-bin/ /usr/local/hive/
+RUN chmod 777 /usr/local/hive
+
+ENV HIVE_HOME /usr/local/hive
+ENV PATH=$PATH:$HIVE_HOME/sbin:$HIVE_HOME/bin
+RUN echo "export HADOOP_HOME=/usr/local/hadoop" >> $HIVE_HOME/conf/hive-config.sh
+
 
 RUN mkdir -p /var/run/mysqld
 RUN chown mysql:mysql /var/run/mysqld
@@ -186,8 +189,14 @@ RUN chmod +x /etc/mysql/my_sql.sh
 
 ADD code/answer1.py /code/answer1.py
 ADD code/answer2.py /code/answer2.py
+ADD code/answer2.py /code/answer4.py
 ADD code/Group45.csv /code/Group45.csv
 ADD dump.sql /var/lib/mysql/dump.sql
+
+ADD bootstrap.sh /etc/bootstrap.sh
+RUN chown root:root /etc/bootstrap.sh
+RUN chmod 700 /etc/bootstrap.sh
+ENV BOOTSTRAP /etc/bootstrap.sh
 
 RUN chmod +x /etc/mysql/my_sql.sh
 CMD ["/etc/mysql/my_sql.sh"]

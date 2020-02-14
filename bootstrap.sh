@@ -23,10 +23,19 @@ $HADOOP_PREFIX/bin/hdfs namenode -format
 $HADOOP_PREFIX/sbin/start-dfs.sh
 $HADOOP_PREFIX/sbin/start-yarn.sh
 
+$HADOOP_PREFIX/bin/hdfs dfs -mkdir -p /user/hive/warehouse
+$HADOOP_PREFIX/bin/hdfs dfs -mkdir /tmp
+$HADOOP_PREFIX/bin/hdfs dfs -chmod g+w /user/hive/warehouse
+$HADOOP_PREFIX/bin/hdfs dfs -chmod g+w /tmp
+
 service mysql start
 mongod --fork --logpath /var/log/mongod.log
 mysql --user=root --password=root < /var/lib/mysql/dump.sql
 python3 /code/answer2.py
+
+cp /usr/local/hadoop/share/hadoop/common/lib/guava-27.0-jre.jar $HIVE_HOME/lib/guava-19.0.jar
+rm -rf metastore_db/
+$HIVE_HOME/bin/schematool -initSchema -dbType derby
 
 if [[ $1 == "-d" ]]; then
   while true; do sleep 1000; done
